@@ -1,75 +1,109 @@
 #include <iostream>
+#include <algorithm>      // Pour std::remove_if
+#include <cctype>         // Pour isalpha, isdigit, etc.
+#include <fstream>        // Pour écrire dans un fichier
+
 using namespace std;
 
-void parseArguments(int argc, char *argv[], string &keyword1, string &keyword2, int &magicNumber, int &truncateLength, bool &noLetters, bool &noDigits, bool &noCapitals, bool &noSymbols, string &outputFile) {
-    for (int i = 1; i < argc; ++i) {
-        string arg = argv[i];
-        if (arg == "--keyword1" && i + 1 < argc) {
-            keyword1 = argv[++i];
-        } else if (arg == "--keyword2" && i + 1 < argc) {
-            keyword2 = argv[++i];
-        } else if (arg == "--magic" && i + 1 < argc) {
-            magicNumber = stoi(argv[++i]);
-        } else if (arg == "--truncate" && i + 1 < argc) {
-            truncateLength = stoi(argv[++i]);
-        } else if (arg == "--noletters") {
-            noLetters = true;
-        } else if (arg == "--nodigits") {
-            noDigits = true;
-        } else if (arg == "--nocapitals") {
-            noCapitals = true;
-        } else if (arg == "--nosymbols") {
-            noSymbols = true;
-        } else if (arg == "--output" && i + 1 < argc) {
-            outputFile = argv[++i];
+#include <conio.h> // Ajoutez ceci en haut du fichier si ce n'est pas déjà fait
+
+void get_keyword_as_hidden_input(string *keyword) {
+    char ch;
+    keyword->clear();
+    while (true) {
+        ch = _getch();
+        if (ch == '\r' || ch == '\n') {
+            cout << endl;
+            break;
+        } else if (ch == '\b' || ch == 127) {
+            if (!keyword->empty()) {
+                keyword->pop_back();
+                cout << "\b \b";
+            }
+        } else if (isprint(static_cast<unsigned char>(ch))) {
+            keyword->push_back(ch);
+            cout << '*';
         }
     }
 }
 
-void test_enumerate_modes(const string &keyword1, const string &keyword2, int magicNumber, int truncateLength, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, const string &outputFile) {
-    // Placeholder for the actual implementation of the function
-    cout << "Testing with parameters:" << endl;
-    cout << "Keyword1: " << keyword1 << endl;
-    cout << "Keyword2: " << keyword2 << endl;
-    cout << "Magic Number: " << magicNumber << endl;
-    cout << "Truncate Length: " << truncateLength << endl;
-    cout << "No Letters: " << (noLetters ? "Yes" : "No") << endl;
-    cout << "No Digits: " << (noDigits ? "Yes" : "No") << endl;
-    cout << "No Capitals: " << (noCapitals ? "Yes" : "No") << endl;
-    cout << "No Symbols: " << (noSymbols ? "Yes" : "No") << endl;
-    cout << "Output File: " << outputFile << endl;
-
-    // Here you would implement the logic to generate hashes or whatever the function is supposed to do
+void prompts_questions(string *keyword1, string *keyword2, string *outputFile, 
+                      int *magicNumber, int *truncateLength, 
+                      bool *noLetters, bool *noDigits, 
+                      bool *noCapitals, bool *noSymbols) {
+    cout << "Enter first keyword: ";
+    get_keyword_as_hidden_input(keyword1);
+    
+    cout << "Enter second keyword: ";
+    get_keyword_as_hidden_input(keyword2);
+    
+    cout << "Enter magic number : ";
+    cin >> *magicNumber;
+    
+    cout << "Enter truncate length (20 by default): ";
+    cin >> *truncateLength;
+    
+    char choice;
+    cout << "Exclude letters? (y/n ; n by default): ";
+    cin >> choice;
+    *noLetters = (choice == 'y' || choice == 'Y');
+    
+    cout << "Exclude digits? (y/n): ";
+    cin >> choice;
+    *noDigits = (choice == 'y' || choice == 'Y');
+    
+    cout << "Exclude capitals? (y/n): ";
+    cin >> choice;
+    *noCapitals = (choice == 'y' || choice == 'Y');
+    
+    cout << "Exclude symbols? (y/n): ";
+    cin >> choice;
+    *noSymbols = (choice == 'y' || choice == 'Y');
 }
 
-// main() function: where the execution of
-// C++ program begins
-int main(int argc, char * argv[]) {
-  
-    // Parse les arguments de la ligne de commande et active les modes appropriés
-    if (argc < 4) {
-        cout << "Usage: " << argv[0] << " <options>" << endl;
-        cout << "Options:" << endl;
-        cout << "  --keyword1 <keyword1>   (Mandatory) Specify the first keyword" << endl;
-        cout << "  --keyword2 <keyword2>   (Mandatory) Specify the second keyword" << endl;
-        cout << "  --magic <magic_number>  Specify a magic number" << endl;
-        cout << "  --truncate <length>     Truncate output to specified length" << endl;
-        cout << "  --noletters             Exclude letters from output" << endl;
-        cout << "  --nodigits              Exclude digits from output" << endl;
-        cout << "  --nocapitals            Exclude capital letters from output" << endl;
-        cout << "  --nosymbols             Exclude symbols from output" << endl;
-        cout << "  --output <output_file>  Specify output file" << endl;
-        return 1;
+void display_answers(const string &keyword1, const string &keyword2, 
+                     const string &outputFile, int magicNumber, 
+                     int truncateLength, bool noLetters, 
+                     bool noDigits, bool noCapitals, bool noSymbols) {
+    cout << "Keyword 1: " << keyword1 << endl;
+    cout << "Keyword 2: " << keyword2 << endl;
+    cout << "Output file: " << outputFile << endl;
+    cout << "Magic number: " << magicNumber << endl;
+    cout << "Truncate length: " << truncateLength << endl;
+    cout << "No letters: " << (noLetters ? "Yes" : "No") << endl;
+    cout << "No digits: " << (noDigits ? "Yes" : "No") << endl;
+    cout << "No capitals: " << (noCapitals ? "Yes" : "No") << endl;
+    cout << "No symbols: " << (noSymbols ? "Yes" : "No") << endl;
+
+    // Write to output file
+    ofstream outFile(outputFile);
+    if (outFile.is_open()) {
+        outFile << keyword1 << "\n" 
+                << keyword2 << "\n"
+                << magicNumber << "\n"
+                << truncateLength << "\n"
+                << (noLetters ? "No letters" : "") << "\n"
+                << (noDigits ? "No digits" : "") << "\n"
+                << (noCapitals ? "No capitals" : "") << "\n"
+                << (noSymbols ? "No symbols" : "") << "\n";
+        outFile.close();
+        cout << "Answers written to file: " << outputFile << endl;
+    } else {
+        cerr << "Error opening file for writing." << endl;
     }
+}
 
-    // Parsing
+int main(int argc, char * argv[]) {
     string keyword1, keyword2, outputFile;
-    static int magicNumber = 0;
-    static int truncateLength = 0;
-    static bool noLetters = false, noDigits = false, noCapitals = false, noSymbols = false;
-    parseArguments(argc, argv, keyword1, keyword2, magicNumber, truncateLength, noLetters, noDigits, noCapitals, noSymbols, outputFile);
+    int magicNumber = 0;
+    int truncateLength = 0;
+    bool noLetters = false, noDigits = false, noCapitals = false, noSymbols = false;
 
-    test_enumerate_modes(keyword1, keyword2, magicNumber, truncateLength, noLetters, noDigits, noCapitals, noSymbols, outputFile);
+    prompts_questions(&keyword1, &keyword2, &outputFile, &magicNumber, &truncateLength, 
+                      &noLetters, &noDigits, &noCapitals, &noSymbols);
 
+    display_answers(keyword1, keyword2, outputFile, magicNumber, truncateLength, 
+                      noLetters, noDigits, noCapitals, noSymbols);
+    
     return 0;
 }
