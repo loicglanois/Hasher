@@ -27,7 +27,7 @@ void get_keyword_as_hidden_input(string *keyword) {
     }
 }
 
-void prompts_questions(string *keyword1, string *keyword2, string *outputFile, 
+void prompts_questions(string *keyword1, string *keyword2, 
                       int *magicNumber, int *truncateLength, 
                       bool *noLetters, bool *noDigits, 
                       bool *noCapitals, bool *noSymbols) {
@@ -41,69 +41,87 @@ void prompts_questions(string *keyword1, string *keyword2, string *outputFile,
     cin >> *magicNumber;
     
     cout << "Enter truncate length (20 by default): ";
-    cin >> *truncateLength;
+    string truncateInput;
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Clear input buffer
+    getline(cin, truncateInput);
+    if (truncateInput.empty()) {
+        *truncateLength = 20;
+    } else {
+        try {
+            *truncateLength = stoi(truncateInput);
+        } catch (...) {
+            *truncateLength = 20;
+        }
+    }
     
     char choice;
     cout << "Exclude letters? (y/n ; n by default): ";
-    cin >> choice;
-    *noLetters = (choice == 'y' || choice == 'Y');
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // Clear input buffer
+    choice = cin.peek();
+    if (choice == '\n' || choice == EOF) {
+        *noLetters = false; // Default to 'n'
+    } else {
+        cin >> choice;
+        *noLetters = (choice == 'y' || choice == 'Y');
+    }
     
     cout << "Exclude digits? (y/n): ";
-    cin >> choice;
-    *noDigits = (choice == 'y' || choice == 'Y');
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    choice = cin.peek();
+    if (choice == '\n' || choice == EOF) {
+        *noDigits = false;
+    } else {
+        cin >> choice;
+        *noDigits = (choice == 'y' || choice == 'Y');
+    }
     
     cout << "Exclude capitals? (y/n): ";
-    cin >> choice;
-    *noCapitals = (choice == 'y' || choice == 'Y');
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    choice = cin.peek();
+    if (choice == '\n' || choice == EOF) {
+        *noCapitals = false;
+    } else {
+        cin >> choice;
+        *noCapitals = (choice == 'y' || choice == 'Y');
+    }
     
     cout << "Exclude symbols? (y/n): ";
-    cin >> choice;
-    *noSymbols = (choice == 'y' || choice == 'Y');
+    cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    choice = cin.peek();
+    if (choice == '\n' || choice == EOF) {
+        *noSymbols = false;
+    } else {
+        cin >> choice;
+        *noSymbols = (choice == 'y' || choice == 'Y');
+    }
 }
 
-void display_answers(const string &keyword1, const string &keyword2, 
-                     const string &outputFile, int magicNumber, 
+void display_answers(const string &keyword1, const string &keyword2, int magicNumber, 
                      int truncateLength, bool noLetters, 
                      bool noDigits, bool noCapitals, bool noSymbols) {
     cout << "Keyword 1: " << keyword1 << endl;
     cout << "Keyword 2: " << keyword2 << endl;
-    cout << "Output file: " << outputFile << endl;
     cout << "Magic number: " << magicNumber << endl;
     cout << "Truncate length: " << truncateLength << endl;
     cout << "No letters: " << (noLetters ? "Yes" : "No") << endl;
     cout << "No digits: " << (noDigits ? "Yes" : "No") << endl;
     cout << "No capitals: " << (noCapitals ? "Yes" : "No") << endl;
     cout << "No symbols: " << (noSymbols ? "Yes" : "No") << endl;
-
-    // Write to output file
-    ofstream outFile(outputFile);
-    if (outFile.is_open()) {
-        outFile << keyword1 << "\n" 
-                << keyword2 << "\n"
-                << magicNumber << "\n"
-                << truncateLength << "\n"
-                << (noLetters ? "No letters" : "") << "\n"
-                << (noDigits ? "No digits" : "") << "\n"
-                << (noCapitals ? "No capitals" : "") << "\n"
-                << (noSymbols ? "No symbols" : "") << "\n";
-        outFile.close();
-        cout << "Answers written to file: " << outputFile << endl;
-    } else {
-        cerr << "Error opening file for writing." << endl;
-    }
 }
 
 int main(int argc, char * argv[]) {
-    string keyword1, keyword2, outputFile;
+    string keyword1, keyword2;
     int magicNumber = 0;
     int truncateLength = 0;
     bool noLetters = false, noDigits = false, noCapitals = false, noSymbols = false;
 
-    prompts_questions(&keyword1, &keyword2, &outputFile, &magicNumber, &truncateLength, 
+    prompts_questions(&keyword1, &keyword2, &magicNumber, &truncateLength, 
                       &noLetters, &noDigits, &noCapitals, &noSymbols);
 
-    display_answers(keyword1, keyword2, outputFile, magicNumber, truncateLength, 
+    display_answers(keyword1, keyword2, magicNumber, truncateLength, 
                       noLetters, noDigits, noCapitals, noSymbols);
+
+    
     
     return 0;
 }
