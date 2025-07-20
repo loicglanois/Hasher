@@ -71,48 +71,36 @@ void get_keyword_as_hidden_input(string &keyword) {
 void prompts_questions(OPTIONS &options) {
     
     string input;
-    cout << "Enter first keyword : ";
-    get_keyword_as_hidden_input(*options.keyword1);
-    
-    cout << "Enter second keyword : ";
-    get_keyword_as_hidden_input(*options.keyword2);
-    
-    cout << "Enter magic number : ";
-    get_keyword_as_hidden_input(input);
-    if (input.empty()) {
-        *options.magicNumber = 0; // Valeur par défaut si vide
-    } else {
-        try {
-            *options.magicNumber = stoi(input);
-        } catch (...) {
-            *options.magicNumber = 0; // Valeur par défaut en cas d'erreur
+
+    for (auto &keyword : {options.keyword1, options.keyword2}) {
+        cout << "Enter keyword number " << (keyword == options.keyword1 ? "1" : "2") << ": ";
+        get_keyword_as_hidden_input(*keyword);
+        if (keyword->empty()) {
+            *keyword = "";
         }
     }
-    
-    cout << "Enter truncate length (20 by default): ";
-    get_keyword_as_hidden_input(input);
-    if (input.empty()) {
-        *options.truncateLength = 20;
-    } else {
-        try {
-            *options.truncateLength = stoi(input);
-        } catch (...) {
-            *options.truncateLength = 20;
+
+    for (auto &number : {options.magicNumber, options.truncateLength}) {
+        cout << "Enter " << (number == options.magicNumber ? "magic number" : "truncate length") << ": ";
+        get_keyword_as_hidden_input(input);
+        if (input.empty()) {
+            *number = (number == options.magicNumber ? 0 : 20); // Default values
+        } else {
+            try {
+                *number = stoi(input);
+            } catch (...) {
+                *number = (number == options.magicNumber ? 0 : 20); // Default values on error
+            }
         }
     }
         
-    cout << "Exclude letters? (y/n): ";
-    get_keyword_as_hidden_input(input);
-    *options.noLetters = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
-    cout << "Exclude digits? (y/n): ";
-    get_keyword_as_hidden_input(input);
-    *options.noDigits = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
-    cout << "Exclude capitals? (y/n): ";
-    get_keyword_as_hidden_input(input);
-    *options.noCapitals = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
-    cout << "Exclude symbols? (y/n): ";
-    get_keyword_as_hidden_input(input);
-    *options.noSymbols = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
+    for (auto &option : {options.noLetters, options.noDigits, options.noCapitals, options.noSymbols}) {
+        cout << "Exclude " << (option == options.noLetters ? "letters" :
+                              option == options.noDigits ? "digits" :
+                              option == options.noCapitals ? "capitals" : "symbols") << "? (y/n): ";
+        get_keyword_as_hidden_input(input);
+        *option = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
+    }
 
 }
 
