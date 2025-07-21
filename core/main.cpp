@@ -7,6 +7,9 @@
 #include <vector>
 #include <cmath>
 #include <random>
+#include "sha256.h"
+
+// Commande pour compiler : g++ -o main main.cpp sha256.h
 
 using namespace std;
 
@@ -19,28 +22,88 @@ struct OPTIONS {
     bool *noDigits;
     bool *noCapitals;
     bool *noSymbols;
+    bool *noLowercase;
 };
+
+bool are_all_allowed_characters_present(const string &hash, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, bool noLowercase) {
+    bool hasLetter = false;
+    bool hasDigit = false;
+    bool hasCapital = false;
+    bool hasSymbol = false;
+    bool hasLowercase = false;
+    for (char c : hash) {
+        if (!noLetters && isalpha(c)) hasLetter = true;
+        if (!noDigits && isdigit(c)) hasDigit = true;
+        if (!noCapitals && isupper(c)) hasCapital = true;
+        if (!noSymbols && !isalnum(c)) hasSymbol = true;
+        if (!noLowercase && islower(c)) hasLowercase = true;
+
+        if (hasLetter && hasDigit && hasCapital && hasSymbol && hasLowercase) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void force_all_types_of_allowed_characters_in_hash(string &hash, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, bool noLowercase, unsigned int seed) {
+    mt19937 gen(seed);
+    string allowedChars;
+
+    if (!noLetters) {
+        allowedChars += "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    }
+    if (!noDigits) {
+        allowedChars += "0123456789";
+    }
+    if (!noCapitals) {
+        allowedChars += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    }
+    if (!noSymbols) {
+        allowedChars += "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+    }
+    if (!noLowercase) {
+        allowedChars += "abcdefghijklmnopqrstuvwxyz";
+    }
+
+    if (allowedChars.empty()) {
+        hash = "NO_VALID_CHARACTERS";
+        return;
+    }
+
+    while (hash.length() < 32) {
+        hash += allowedChars[gen() % allowedChars.length()];
+    }
+}
+
+void pre_hash_as_sha_256(string *input) {
+    char hex[SHA256_HEX_SIZE];
+    sha256_hex(input->c_str(), input->length(), hex);
+    *input = string(hex);
+}
 
 char getRandomChar(mt19937& gen, int min, int max) {
     uniform_int_distribution<> dis(min, max);
     return static_cast<char>(dis(gen));
 }
 
-string filterCharacters(const string& input, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols) {
+string filterCharacters(string& input, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, bool noLowercase = false) {
     string result;
     for (char c : input) {
-        if (!noLetters && isalpha(c)) continue;
-        if (!noDigits && isdigit(c)) continue;
-        if (!noCapitals && isupper(c)) continue;
-        if (!noSymbols && !isalnum(c)) continue;
+        if (noLetters && isalpha(c)) continue;
+        if (noDigits && isdigit(c)) continue;
+        if (noCapitals && isupper(c)) continue;
+        if (noSymbols && !isalnum(c)) continue;
+        if (noLowercase && islower(c)) continue;
         result += c;
     }
     return result;
 }
 
 string customHash(const string& keyword1, const string& keyword2, int magicNumber, int truncateLength, 
-                  bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, mt19937& gen) {
+                  bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, bool noLowercase, mt19937& gen, unsigned int seed) {
     string combined = keyword1 + to_string(magicNumber) + keyword2;
+    // pre_hash_as_sha_256(&combined);
     if (combined.empty()) combined = "default";
 
     int targetLength = max(32, static_cast<int>(combined.length() * 1.5));
@@ -65,10 +128,15 @@ string customHash(const string& keyword1, const string& keyword2, int magicNumbe
         if (c > 126) c -= 94;
     }
 
-    string filtered = filterCharacters(combined, noLetters, noDigits, noCapitals, noSymbols);
+    string filtered = filterCharacters(combined, noLetters, noDigits, noCapitals, noSymbols, noLowercase);
 
     if (truncateLength > 0 && filtered.length() > static_cast<size_t>(truncateLength)) {
         filtered = filtered.substr(0, truncateLength);
+    }
+
+    if (!are_all_allowed_characters_present(filtered, noLetters, noDigits, noCapitals, noSymbols, noLowercase)) {
+
+        customHash(filtered, keyword2, magicNumber, truncateLength, noLetters, noDigits, noCapitals, noSymbols, noLowercase, gen, seed);
     }
 
     return filtered.empty() ? "NO_VALID_CHARACTERS" : filtered;
@@ -101,6 +169,8 @@ void parse_arguments(int argc, char *argv[], OPTIONS &options) {
             *options.noCapitals = true;
         } else if (arg == "--noSymbols") {
             *options.noSymbols = true;
+        } else if (arg == "--noLowercase") {
+            *options.noLowercase = true;
         }
     }
 }
@@ -154,12 +224,13 @@ void prompts_questions(OPTIONS &options) {
         }
     }
         
-    for (auto &option : {options.noLetters, options.noDigits, options.noCapitals, options.noSymbols}) {
+    for (auto &option : {options.noLetters, options.noDigits, options.noCapitals, options.noSymbols, options.noLowercase}) {
         cout << "Exclude " << (option == options.noLetters ? "letters" :
                               option == options.noDigits ? "digits" :
-                              option == options.noCapitals ? "capitals" : "symbols") << "? (y/n): ";
+                              option == options.noCapitals ? "capitals" :
+                              option == options.noSymbols ? "symbols" : "lowercase") << "? (y/n): ";
         get_keyword_as_hidden_input(input);
-        *option = (input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
+        *option = !(input.empty() || input.at(0) == 'y' || input.at(0) == 'Y');
     }
 
 }
@@ -173,6 +244,7 @@ void display_answers(const OPTIONS &options) {
     cout << "No Digits: " << (*options.noDigits ? "Yes" : "No") << endl;
     cout << "No Capitals: " << (*options.noCapitals ? "Yes" : "No") << endl;
     cout << "No Symbols: " << (*options.noSymbols ? "Yes" : "No") << endl;
+    cout << "No Lowercase: " << (*options.noLowercase ? "Yes" : "No") << endl;
 }
 
 int main(int argc, char * argv[]) {
@@ -181,6 +253,7 @@ int main(int argc, char * argv[]) {
         new string(""),
         new int(0),
         new int(20),
+        new bool(false),
         new bool(false),
         new bool(false),
         new bool(false),
@@ -201,9 +274,9 @@ int main(int argc, char * argv[]) {
     mt19937 gen(seed);
 
     string hash = customHash(*options.keyword1, *options.keyword2, *options.magicNumber, *options.truncateLength, 
-                            *options.noLetters, *options.noDigits, *options.noCapitals, *options.noSymbols, gen);
+                            *options.noLetters, *options.noDigits, *options.noCapitals, *options.noSymbols, *options.noLowercase, gen, seed);
 
-    cout << "Generated Hash: " << hash << endl;
+    cout << "Hash: " << hash << endl;
 
     delete options.keyword1;
     delete options.keyword2;
