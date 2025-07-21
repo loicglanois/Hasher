@@ -4,6 +4,9 @@
 #include <fstream>
 #include <limits>
 #include <conio.h>
+#include <vector>
+#include <cmath>
+#include <random>
 
 using namespace std;
 
@@ -17,6 +20,59 @@ struct OPTIONS {
     bool *noCapitals;
     bool *noSymbols;
 };
+
+char getRandomChar(mt19937& gen, int min, int max) {
+    uniform_int_distribution<> dis(min, max);
+    return static_cast<char>(dis(gen));
+}
+
+string filterCharacters(const string& input, bool noLetters, bool noDigits, bool noCapitals, bool noSymbols) {
+    string result;
+    for (char c : input) {
+        if (!noLetters && isalpha(c)) continue;
+        if (!noDigits && isdigit(c)) continue;
+        if (!noCapitals && isupper(c)) continue;
+        if (!noSymbols && !isalnum(c)) continue;
+        result += c;
+    }
+    return result;
+}
+
+string customHash(const string& keyword1, const string& keyword2, int magicNumber, int truncateLength, 
+                  bool noLetters, bool noDigits, bool noCapitals, bool noSymbols, mt19937& gen) {
+    string combined = keyword1 + to_string(magicNumber) + keyword2;
+    if (combined.empty()) combined = "default";
+
+    int targetLength = max(32, static_cast<int>(combined.length() * 1.5));
+    while (combined.length() < targetLength) {
+        int choice = gen() % 4;
+        switch (choice) {
+            case 0: combined += getRandomChar(gen, 'a', 'z'); break;
+            case 1: combined += getRandomChar(gen, 'A', 'Z'); break;
+            case 2: combined += getRandomChar(gen, '0', '9'); break;
+            case 3: combined += getRandomChar(gen, 33, 47); break;
+        }
+    }
+
+    shuffle(combined.begin(), combined.end(), gen);
+
+    for (size_t i = 0; i < combined.size(); ++i) {
+        char& c = combined[i];
+        int transformation = (i * magicNumber + c) % 94 + 33;
+        c = static_cast<char>(transformation);
+
+        if (c < 33) c += 33;
+        if (c > 126) c -= 94;
+    }
+
+    string filtered = filterCharacters(combined, noLetters, noDigits, noCapitals, noSymbols);
+
+    if (truncateLength > 0 && filtered.length() > static_cast<size_t>(truncateLength)) {
+        filtered = filtered.substr(0, truncateLength);
+    }
+
+    return filtered.empty() ? "NO_VALID_CHARACTERS" : filtered;
+}
 
 void parse_arguments(int argc, char *argv[], OPTIONS &options) {
     for (int i = 1; i < argc; ++i) {
@@ -71,13 +127,17 @@ void get_keyword_as_hidden_input(string &keyword) {
 void prompts_questions(OPTIONS &options) {
     
     string input;
-
     for (auto &keyword : {options.keyword1, options.keyword2}) {
         cout << "Enter keyword number " << (keyword == options.keyword1 ? "1" : "2") << ": ";
         get_keyword_as_hidden_input(*keyword);
         if (keyword->empty()) {
             *keyword = "";
         }
+    }
+
+    if (options.keyword1->empty() && options.keyword2->empty()) {
+        cerr << "Error: Both keywords are required" << endl;
+        exit(EXIT_FAILURE);
     }
 
     for (auto &number : {options.magicNumber, options.truncateLength}) {
@@ -133,8 +193,17 @@ int main(int argc, char * argv[]) {
         parse_arguments(argc, argv, options);
     }
 
-    display_answers(options);
+    std::random_device rd;
+    unsigned int seed = 0;
+    for (char c : *options.keyword1) {
+        seed = seed * 31 + c + *options.magicNumber;
+    }
+    mt19937 gen(seed);
 
+    string hash = customHash(*options.keyword1, *options.keyword2, *options.magicNumber, *options.truncateLength, 
+                            *options.noLetters, *options.noDigits, *options.noCapitals, *options.noSymbols, gen);
+
+    cout << "Generated Hash: " << hash << endl;
 
     delete options.keyword1;
     delete options.keyword2;
